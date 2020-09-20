@@ -248,7 +248,7 @@ env_data_red2 <- env_data_red[,select]
 #redo CCA
 training <- training[,colSums(training) > 0] 
 
-#duplicate training dataframe before hellinger transformation for subset more abundant species
+#duplicate training dataframe before hellinger transformation for subset the more abundant species
 training_plt <- training
 
 training <- tran(training, method="hellinger") #give better results transforming
@@ -334,12 +334,10 @@ pred_cores <- split(pred_cores, pred_cores$lake)
 seq_palette <- viridis(4)
 
 png("CCA_timetrack.png", width=10, height=8, units="in", res=300)
-
 layout(matrix(1:2, ncol = 2))
 
 # Extract species scores
 scrs <- scores(mod_training, display = "species", scaling = 3)
-
 take <- colnames(training_plt) %in% rownames(scrs)
 TAXA <- which(colSums(training_plt[,take] > 0) > 15 & (apply(training_plt[,take]^2, 2, max) > 10)) 
 plot(mod_training, display="species", scaling=3, type="n", xlab="", ylab="")
@@ -349,13 +347,28 @@ title(ylab = paste0(names(labs[2]), " (", sprintf("%.1f", labs[2]), "%)"))
 
 #customize species scores by ecological groups; must be done before abbreviate
 #from TAXA
-take2 <- changes_training$old %in% names(TAXA)
-nmsdiat <- changes_training$new_2[take2] #FALLA
+take1 <- unique(changes_training$new_1)
+take2 <- take1 %in% names(TAXA)
+nmsdiat <- changes_training$new_2[take2] #FALLA most likely due to repeated names; change manually
+
+nmsdiat <- nmsdiat[-43]
+nmsdiat[3] <- "freshwater_planktic"
+nmsdiat[6] <- "epiphytic"
+nmsdiat[7] <- "freshwater_planktic"
+nmsdiat[10] <- "freshwater_planktic"
+nmsdiat[11] <- "epiphytic"
+nmsdiat[12] <- "benthic"
+nmsdiat[24] <- "tycoplanktonic"
+nmsdiat[26] <- "tycoplanktonic"
+nmsdiat[27] <- "tycoplanktonic"
+nmsdiat[32] <- "epiphytic"
+nmsdiat[40] <- "tycoplanktonic"
+nmsdiat[41] <- "tycoplanktonic"
+nmsdiat[42] <- "tycoplanktonic"
+
 #points(mod_training, display="species", cex = 0.5, scaling = 3, pch=20, select = TAXA)
 points(mod_training, display="species", cex = 0.8, scaling = 3, pch=20, select = TAXA,
        col=as.factor(nmsdiat))
-ordipointlabel(mod_training, display = "species", scaling = 3,
-               select = TAXA, cex = 0.75, add = TRUE)
 
 # add abbreviated species names
 spnames_abb <- abbreviate(names(training_plt), minlength=10) 
@@ -364,15 +377,38 @@ rownames(scrs) <- colnames(training_plt)
 take <- colnames(training_plt) %in% rownames(scrs)
 TAXA <- which(colSums(training_plt[,take] > 0) > 15 & (apply(training_plt[,take]^2, 2, max) > 10)) 
 
+  #Extract most abundant spp scores 
+  take_scrs <- rownames(scrs) %in% names(TAXA)
+  scrsdf <- data.frame(scrs)
+  scrs_spp_CCA1 <- as.data.frame(scrsdf[,1][take_scrs])
+  scrs_spp_CCA1_2 <- as.data.frame(cbind(scrs_spp_CCA1, scrsdf[,2][take_scrs]))
+  colnames(scrs_spp_CCA1_2) <-c("CCA1", "CCA2")
+  rownames(scrs_spp_CCA1_2) <- names(TAXA)
+  scrs_spp_CCA1_2$guild <- nmsdiat
+  
+  #Plot ssp sccores
+  png("CCAaxes_speciesscore.png", width=10, height=8, units="in", res=300)
+  par(mfrow = c(1, 2))
+  par(mar = c(5, 4, 2, 2))
+  datCCA1 <- scrs_spp_CCA1_2[order(scrs_spp_CCA1_2$CCA1),] 
+  barplot(datCCA1$CCA1, col=as.factor(datCCA1$guild), xlab="CCA axis 1 species score",
+          horiz=TRUE)
+  datCCA2 <- scrs_spp_CCA1_2[order(scrs_spp_CCA1_2$CCA2),]
+  barplot(datCCA2$CCA2, col=as.factor(datCCA2$guild), xlab="CCA axis 2 species score",
+          horiz=TRUE)
+  legend(-1.5, 40, legend = as.character(unique(datCCA2$guild)), bty = "n",
+         col = as.factor(unique(datCCA2$guild)), pch = 15,
+         cex=0.8)
+  dev.off()
+
 training_plt <- tran(training_plt, method="hellinger") #give better results transforming
 mod_training_plt <- cca(training_plt~., data=env_data_red2, scale=TRUE)
 ordipointlabel(mod_training_plt, display = "species", scaling = 3,
-               select = TAXA, cex = 0.75, add = TRUE)
+               select = TAXA, cex = 0.6, add = TRUE)
 
-legend("bottomright", legend = as.character(unique(nmsdiat)), bty = "n",
+legend("bottomleft", legend = as.character(unique(nmsdiat)), bty = "n",
                       col = as.factor(unique(nmsdiat)), pch = 21, pt.bg = as.factor(unique(nmsdiat)),
-                      cex=0.8)
-
+                      cex=0.7)
 
 ## Plot site (lake) scores
 plot(mod_training, display=c('bp', 'sites'), xlab="", ylab="")
@@ -405,8 +441,8 @@ points(pred_cores$Fondococha[nrow(pred_cores$Fondococha),], pch = 22, cex = 1.6,
 points(pred_cores$Llaviucu[nrow(pred_cores$Llaviucu),], pch = 22, cex = 1.6,
        col = "grey", bg=seq_palette[4])
 
-legend(-1.5, -2.5, pch = c(24, 22), bg=c("forestgreen", "forestgreen"),
-       col=c("black","black"),          cex = 0.8,
+legend(-1.5, -2, pch = c(24, 22), bg=c("forestgreen", "forestgreen"),
+       col=c("black","black"),  cex = 0.8,
        legend = c("Core top","Core bottom"), bty = "n")
 
 
@@ -433,9 +469,21 @@ surf <- ordisurf(mod_training$CCA$u[-1,], spturn,
                  method = "REML", select = FALSE, add = TRUE,
                  col = "orange", cex=1, lwd.cl = 2)
 summary(surf)
-
-legend("bottomright", col="orange", lty=1, cex=0.8,
+legend(-1.5, -2.5, col="orange", lty=1, cex=0.8,
        legend= c("Species turnover"), bty='n')
+
+#calibrate () calls predict.gam
+ordResult <- list()
+for(i in seq_along(pred_cores)) {
+  newdat <- pred_cores[[i]][,1:2]
+  pred_spturn <- calibrate(surf, newdata = newdat, se.fit=TRUE)
+  ordResult$pred_spturn[[i]] <- as.numeric(pred_spturn$fit)
+  ordResult$pred_spturn_error[[i]] <- as.numeric(pred_spturn$se.fit)
+  RMSE <- function(error) { sqrt(mean(error^2)) }
+  ordResult$RMSE[[i]] <-  RMSE(surf$residuals)
+}
+names(ordResult$pred_spturn) <- names(pred_cores)
+names(ordResult$pred_spturn_error) <- names(pred_cores)
 
 ###
 
@@ -514,7 +562,6 @@ box()
 dev.off()
 
 
-
 ## Modern analogues
 env <- env_data$Depth_avg
 lake <- "Fondococha"
@@ -574,52 +621,6 @@ dist_to_analogues_all_plt <- ggplot(data=dist_to_analogues_all, aes(x=ages, y=di
   theme_bw()
 
 ggsave("dist_to_analogues_plot_all.png", dist_to_analogues_all_plt, height = 8, width = 10)
-
-
-#This is for prepare data to map diatom community cluster composition
-# FIRST DO CLUSTER ANALYSIS OF DIATOM SPECIES COMPOSITION
-#this is to group species by ecological groups
-new <- df_thin %>% 
-  mutate(taxa = plyr::mapvalues(taxa, from = changes_training$old, to = changes_training$new_2)) %>% #ecological grouping
-  group_by(region, Row.names, taxa) %>%
-  summarise(count = sum(count)) %>%
-  filter(!count == "0" ) %>% #this is to remove empty samples (rows)
-  ungroup() %>%
-  group_by(Row.names, region) %>%
-  mutate(relative_abundance_percent = count / sum(count) * 100) %>%
-  mutate(plank=sum(count[taxa=="freshwater_planktic" | taxa=="tycoplanktonic"])) %>%
-  mutate(benthic=sum(count[taxa=="epiphytics"| taxa== "saline" | taxa=="benthic"])) %>%
-  mutate(P_B=plank/benthic) %>%
-  mutate(P_B2=(plank-benthic)/(plank+benthic)) %>% #[-1(benthic dominated) to 1(planktic dominated)]
-  ungroup() 
-
-#make it wide
-lake_diatom_ratios <- new %>%
-  select(region, Row.names, taxa, P_B2, relative_abundance_percent) %>%
-  spread(key = taxa, value = relative_abundance_percent) 
-
-lake_diatom_ratios[is.na(lake_diatom_ratios)] <- 0
-
-new <- lake_diatom_ratios
-
-#this is to reduce training set to northern Andean lakes
-select.regions <- paste(c("Ecuador", "Colombia", "Junin", "Cusco", "eastern"), collapse = '|')
-remove.lakes <- paste(c("EpNGEO-F_Cubilche1", "Bush-Gd_Miski", "JunnPln_L.Pc,12d1",
-                        "Cusco_C-PLS-12", "GslngBA_Estrelln", "Brdb-SA_SlcrTrqm", "Bush-Gd_Huamnmrc",
-                        "GslngBA_KK(nrth)", "Brdb-SA_LgnDsgdr", "EpNGEO-F_Cunrro1"), collapse = '|')
-
-
-# comment spp when analyzing ecological groups data
-new <- new %>%
-  filter(str_detect(region, select.regions)) %>%
-  filter(!str_detect(Row.names, remove.lakes)) %>%
-  as.data.frame()
-
-training <- new[, -which(names(new) %in% c("Row.names", "region"))]
-
-#For surface plotting ordination: Merge diatom training set and environmental data of lakes
-row.names(training) <- new[, which(names(new) %in% c("Row.names"))]
-env_surf <- merge(training,environmental_data_lakes, by="row.names")
 
 
 
