@@ -160,7 +160,7 @@ remove <- function(i, cores, ...) {
   core <- core[, -which(names(core) %in% c("depth", "upper_age", "lower_age", "lake", "AgeCE"))] # drop year & depths vars
   # comment the next line when predicting core trajectories in the timetrack analysis
   #core <- core[, colSums(core) > 0] #select only present species
-  # core <- tran(core, "hellinger")
+  #core <- tran(core, "hellinger")
   return(core)
 }
 
@@ -177,6 +177,19 @@ cores$trainingset <- NULL
 #check NA in the list
 listnans <- lapply(cores, function(x) sum(is.na(x)))
 
+## DCA
+doDCA <- function(i, cores, ...) {
+  core <- cores[[i]]
+  core <- core[, -which(names(core) %in% c("depth", "upper_age", "lower_age", "lake", "AgeCE"))] # drop year & depths vars
+  # comment the next line when predicting core trajectories in the timetrack analysis
+  core <- core[, colSums(core) > 0] #select only present species
+  core <- tran(core, "hellinger")
+  core <- decorana(core, iweigh = 1)
+  return(core)
+}
+coresDCA <- lapply(seq_along(df), doDCA, cores=df)
+#name list elements
+names(coresDCA) <- c("Fondococha", "Lagunillas", "Llaviucu", "Pinan", "Titicaca", "Triumfo", "Umayo", "Yahuarcocha", "trainingset")
 
 ### CCA
 env_data <- env_data_lakes
@@ -352,14 +365,16 @@ take2 <- take1 %in% names(TAXA)
 nmsdiat <- changes_training$new_2[take2] #FALLA most likely due to repeated names; change manually
 
 nmsdiat <- nmsdiat[-43]
-nmsdiat[3] <- "freshwater_planktic"
+nmsdiat[3] <- "tycoplanktonic"
+nmsdiat[4] <- "tycoplanktonic"
+nmsdiat[5] <- "tycoplanktonic"
 nmsdiat[6] <- "epiphytic"
-nmsdiat[7] <- "freshwater_planktic"
-nmsdiat[10] <- "freshwater_planktic"
+nmsdiat[7] <- "freshwater planktic"
+nmsdiat[10] <- "freshwater planktic"
 nmsdiat[11] <- "epiphytic"
 nmsdiat[12] <- "benthic"
 nmsdiat[24] <- "tycoplanktonic"
-nmsdiat[26] <- "tycoplanktonic"
+nmsdiat[26] <- "freshwater planktic"
 nmsdiat[27] <- "tycoplanktonic"
 nmsdiat[32] <- "epiphytic"
 nmsdiat[40] <- "tycoplanktonic"
@@ -479,11 +494,27 @@ for(i in seq_along(pred_cores)) {
   pred_spturn <- calibrate(surf, newdata = newdat, se.fit=TRUE)
   ordResult$pred_spturn[[i]] <- as.numeric(pred_spturn$fit)
   ordResult$pred_spturn_error[[i]] <- as.numeric(pred_spturn$se.fit)
+  ordResult$fitted.values[[i]] <- fitted(surf)
   RMSE <- function(error) { sqrt(mean(error^2)) }
   ordResult$RMSE[[i]] <-  RMSE(surf$residuals)
 }
 names(ordResult$pred_spturn) <- names(pred_cores)
 names(ordResult$pred_spturn_error) <- names(pred_cores)
+
+#quantile(fitted(surf))
+
+#extract mean and sd species turnover for each core and add into histogram
+data_mean_sd <- list()
+for(i in 1:length(ordResult[[1]])) {
+  data_mean_sd$mean[[i]]<-mean(as.numeric(lapply(ordResult$pred_spturn,"[",n=i)))
+  data_mean_sd$sd[[i]]<-sd(as.numeric(lapply(ordResult$pred_spturn,"[",n=i)))
+}
+
+hist(fitted(surf), main="Modern species turnover")
+for(i in 1:4) abline(v=data_mean_sd$mean[i], col=i+1, lty=2, lwd=2)
+cols <- c("red", "mediumblue", "cadetblue1", "green")
+legend("topright", col=cols, lty=1, cex=0.8,
+       legend= c("Fondococha", "Piñan", "Yahuarcocha", "Llaviucu"), bty='n')
 
 ###
 

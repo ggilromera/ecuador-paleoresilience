@@ -678,7 +678,7 @@ ecuadorspds$years_AD <- round((ecuadorspds$calBP*(-1)+1950), digits=0) # transfo
 spd_bins1 <- binFunc(as.data.frame(ecuadorspds), as.numeric(ecuadorspds$years_AD), 100, 0, 1700) ##
 spd_bins2 <- binFunc(as.data.frame(ecuadorspds), as.numeric(ecuadorspds$years_AD), 30, 1700, 2000) ##
 
-spd_binned <- rbind.data.frame(sds_bins1, sds_bins2)
+spd_binned <- rbind.data.frame(spd_bins1, spd_bins2)
 
 
 ## bin Human predictors
@@ -903,14 +903,22 @@ par(mfrow=c(2,2))
 par(mar=c(3,2,2,3))
 
 plot(mod4, display=c('bp', 'sites'), scaling=3, main="Fondococha")
+plot(mod4, display=c('bp', 'species'), scaling=3, main="Fondococha")
+
 plot(mod1, display=c('bp', 'sites'), scaling=3, main="Llaviucu")
+plot(mod1, display=c('bp', 'species'), scaling=3, main="Llaviucu")
+
 plot(mod3, display=c('bp', 'sites'), scaling=3, main="Piñan")
+plot(mod3, display=c('bp', 'species'), scaling=3, main="Piñan")
+
 plot(mod2, display=c('bp', 'sites'), scaling=3, main="Yahuarcocha")
+plot(mod2, display=c('bp', 'species'), scaling=3, main="Yahuarcocha")
 
 ## Fortify the ordinations for ggploting--for each model
 ford <- fortify(mod3, axes = 1:2)  # fortify the ordination
 take <- c('CCA1', 'CCA2')  # which columns contain the scores we want
 arrows <- subset(ford, Score == 'biplot')  # take only biplot arrow scores
+species <- subset(ford, Score == 'species')  # take species scores
 
 ## multiplier for arrows to scale them to the plot range
 mul <- ggvegan:::arrowMul(arrows[, take],
