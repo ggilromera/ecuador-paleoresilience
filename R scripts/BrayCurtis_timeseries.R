@@ -3,8 +3,8 @@
 ## BC dissimilarity from consecutive and cumulative samples
 #successive samples
 ## non-binned data
-ts_BCdismilarity_north_lakes <- read.csv("ts_BCdismilarity_north_lakes.csv", row.names = 1)
-tsref_BCdismilarity_north_lakes <- read.csv("tsref_BCdismilarity_north_lakes.csv", row.names = 1)
+ts_BCdismilarity_north_lakes <- read.csv("data/ts_BCdismilarity_north_lakes.csv", row.names = 1)
+tsref_BCdismilarity_north_lakes <- read.csv("data/tsref_BCdismilarity_north_lakes.csv", row.names = 1)
 
 
 llav <- ts_BCdismilarity_north_lakes %>% filter(id=="llaviucu")
@@ -18,7 +18,7 @@ pin_ref <- tsref_BCdismilarity_north_lakes %>% filter(id=="pinan")
 fondo_ref <- tsref_BCdismilarity_north_lakes %>% filter(id=="fondococha")
 
 #read in fossil distance to modern analogues
-dist_to_analogues_all_lakes<- read.csv("dist_to_analogues_all_lakes.csv",row.names = 1) 
+dist_to_analogues_all_lakes<- read.csv("data/dist_to_analogues_all_lakes.csv",row.names = 1) 
 
 axis.V<-1.1
 label.V<-0.9
@@ -89,7 +89,7 @@ legend("topright",legend = c("Llaviucu"), bg="transparent", bty="n",inset=0.010,
 
 # Here add human and climatic historical timeseries
 library(zoo)
-long_matrixHumanHist <- read.csv("long_matrixHumanHist.csv", row.names=1) %>%
+long_matrixHumanHist <- read.csv("data/long_matrixHumanHist.csv", row.names=1) %>%
   mutate(age=1950-years)
 var <- "cropland"
 #var <- "HumanDensity"

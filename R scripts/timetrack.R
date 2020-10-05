@@ -177,20 +177,6 @@ cores$trainingset <- NULL
 #check NA in the list
 listnans <- lapply(cores, function(x) sum(is.na(x)))
 
-## DCA
-doDCA <- function(i, cores, ...) {
-  core <- cores[[i]]
-  core <- core[, -which(names(core) %in% c("depth", "upper_age", "lower_age", "lake", "AgeCE"))] # drop year & depths vars
-  # comment the next line when predicting core trajectories in the timetrack analysis
-  core <- core[, colSums(core) > 0] #select only present species
-  core <- tran(core, "hellinger")
-  core <- decorana(core, iweigh = 1)
-  return(core)
-}
-coresDCA <- lapply(seq_along(df), doDCA, cores=df)
-#name list elements
-names(coresDCA) <- c("Fondococha", "Lagunillas", "Llaviucu", "Pinan", "Titicaca", "Triumfo", "Umayo", "Yahuarcocha", "trainingset")
-
 ### CCA
 env_data <- env_data_lakes
 
@@ -210,15 +196,15 @@ env_data <- transform(env_data, Water.T=log10(Water.T+0.25), Elevation=sqrt(Elev
 #plot first cca to subset environmental variables
 training <- training[,colSums(training) > 0] 
 
-ccaResult <- list()
-for (i in 1:length(env_data)) {
-  mod <- cca(training~env_data[,i], na=na.omit, subset = complete.cases(training), scale=TRUE)
-  ccaResult$mod[[i]] <- mod
-  # plot(ccaResult$mod[[i]], main=colnames(env_data[i]))
-  print(anova(ccaResult$mod[[i]]))
-}
+# ccaResult <- list()
+# for (i in 1:length(env_data)) {
+#   mod <- cca(training~env_data[,i], na=na.omit, subset = complete.cases(training), scale=TRUE)
+#   ccaResult$mod[[i]] <- mod
+#   # plot(ccaResult$mod[[i]], main=colnames(env_data[i]))
+#   print(anova(ccaResult$mod[[i]]))
+# }
 
-names(ccaResult$mod) <- colnames(env_data)
+#names(ccaResult$mod) <- colnames(env_data)
 
 #multivariate cca
 select <- c("pH", "Cond", "Water.T", "TP", "Ca", "Mg", "K", "Elevation",
@@ -595,10 +581,12 @@ dev.off()
 
 ## Modern analogues
 env <- env_data$Depth_avg
-lake <- "Fondococha"
-lakedepth <- "fondococha"
+lake <- "Llaviucu"
+lakedepth <- "llaviucu"
 
 mod <- rioja::MAT(training/100, env, dist.method="sq.chord")
+#mod <- rioja::MAT(training/100, env, dist.method="bray")
+
 pred <- predict(mod,cores[[lake]]/100)
 ages <- as.numeric(coresList[[lakedepth]]$upper_age)
 plot(ages, pred$dist.n[,1], ylab="Squared chord distance", xlab="Age cal yr BP")
