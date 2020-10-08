@@ -37,6 +37,7 @@ plot(pin$age, pin$timeseriesBC, type="n", ylab="BC\ndissimilarity", xlab=NA,xaxt
      cex.lab=label.V,cex.axis=axis.V, ylim = c(0,1), xlim=c(-60,2000))
 abline(v=c(764:783), col="grey", lty=1, lwd=3)
 abline(v=c(946:1024), col="grey", lty=1, lwd=3)
+abline(h=goodpoorbad$Pinan[2], col="black", lty=2, lwd=1) #5th cutoff value
 lines(pin$age, pin$timeseriesBC, type="l", lwd=2, ylab="BC\ndissimilarity", xlab=NA,xaxt='n',
       cex.lab=label.V,cex.axis=axis.V, ylim = c(0,1), xlim=c(-60,2000), col=seq_palette[1])
 lines(pin_ref$age, pin_ref$timeseriesBC_fromreference, lwd=1, col=seq_palette[1])
@@ -50,6 +51,7 @@ legend("topright",legend = c("Piñan"),inset=0.010,cex=0.9, bg="transparent", bt
 
 plot(yah$age, yah$timeseriesBC, type="l", lwd=2, ylab="BC\ndissimilarity", xlab=NA,
      xaxt='n',cex.lab=label.V,cex.axis=axis.V, ylim = c(0,1), xlim=c(-60,2000),col=seq_palette[2])
+abline(h=goodpoorbad$Yahuarcocha[2], col="black", lty=2,lwd=1) #5th cutoff value
 lines(yah_ref$age, yah_ref$timeseriesBC_fromreference, lwd=1, col=seq_palette[2])
 for(i in 1:4) abline(v=zones_yahuarcocha[i], col=i+1, lty=2, lwd=2)
 dist_to_analogues_yah <- dist_to_analogues_all_lakes %>% 
@@ -57,11 +59,12 @@ dist_to_analogues_yah <- dist_to_analogues_all_lakes %>%
   filter(quality=="bad")
 points(dist_to_analogues_yah$ages,rep(max(dist_to_analogues_yah$dist_to_analogues)*1.10,
                                       length(dist_to_analogues_yah$ages)),pch=25,bg="darkorange", col="black", cex=1.5)
-legend("topright",legend = c("Yahuarcocha"), bg="transparent", bty="n",inset=0.010)
+legend("topright",legend = c("Yahuarcocha"), bg="transparent", bty="n",inset=0.015)
 
 plot(fondo$age[1:79], fondo$timeseriesBC[1:79], type="n", ylab="BC\ndissimilarity", xlab=NA,xaxt='n',
      cex.lab=label.V,cex.axis=axis.V, ylim = c(0,1), xlim=c(-60,2000))
 abline(v=c(1996:2063), col="grey", lty=1, lwd=3)
+abline(h=goodpoorbad$Fondococha[2], col="black", lty=2,lwd=1) #5th cutoff value
 lines(fondo$age[1:79], fondo$timeseriesBC[1:79], type="l", lwd=2, ylab="BC\ndissimilarity",
       xlab=NA, xaxt='n', cex.lab=label.V,cex.axis=axis.V, ylim = c(0,1),xlim=c(-60,2000),
       col=seq_palette[3])
@@ -76,6 +79,7 @@ legend("topright",legend = c("Fondococha"), bg="transparent", bty="n",inset=0.01
 
 plot(llav$age[1:68], llav$timeseriesBC[1:68], type="l", lwd=2, ylab = "BC\ndissimilarity",
      xlab=NA,xaxt='n', cex.lab=label.V,cex.axis=axis.V, ylim = c(0,1), xlim=c(-60,1900),col=seq_palette[4])
+abline(h=goodpoorbad$Llaviucu[2], col="black", lty=2,lwd=1) #5th cutoff value
 lines(llav_ref$age[1:68], llav_ref$timeseriesBC_fromreference[1:68], type="l", lwd=1, ylab = "BC dissimilarity from reference", xlab=NA, xaxt='n',
       cex.lab=label.V,cex.axis=axis.V, ylim = c(0,1), col=seq_palette[4])
 for(i in 1:4) abline(v=zones_llaviucu[i], col=i+1, lty=2, lwd=2)
@@ -123,7 +127,6 @@ ages <- as.data.frame(as.numeric(row.names(binnedClimateSimulated$PrecipSeason))
 ages <- plyr::rename(ages,c("as.numeric(row.names(binnedClimateSimulated$PrecipSeason))"="age"))
 
 matrixClimHist <- cbind(matrixClimateHist, ages)
-
 long_matrixClimHist<-gather(matrixClimHist, key=lake, value=value, -age, -.id)
 
 #read pages2k temperature data
@@ -139,11 +142,6 @@ legend("topright",legend = c("PAGES2K Temperature anomalies reconstruction"),
 pumacocha <- read.csv("/Volumes/xbenitogranell-data/0_project/data/climate/SouthAmerica_hydroclimate_records.csv", row.names = 1) %>%
   filter(core %in% c("pumacocha")) %>% filter(!d13C==-9999.00)
 
-# triumfo <- read.csv("/Volumes/xbenitogranell-data/0_project/data/climate/SouthAmerica_hydroclimate_records.csv", row.names = 1) %>%
-#   filter(core %in% c("triumfo")) %>% filter(!d13C==0.0)
-# ubaque <- read.csv("/Volumes/xbenitogranell-data/0_project/data/climate/SouthAmerica_hydroclimate_records.csv", row.names = 1) %>%
-#   filter(core %in% c("ubaque")) %>% filter(!d13C==-9999.00)
-
 plot(pumacocha$age_calBP, pumacocha$d18O, type="l", lwd=2, ylab=expression(paste (delta^18, "O \u2030")),
      cex.lab=label.V,cex.axis=axis.V, xlim=c(-60,2000), col="black", xlab=NA,xaxt='n')
 legend("topright",legend = c("Pumacocha lake"), bg="transparent", bty="n",inset=0.010,cex=0.9)
@@ -155,5 +153,5 @@ plot(ecuadorspds$calBP, ecuadorspds$PrDens, type="h", lwd=2, ylab="SPD",
      cex.lab=label.V,cex.axis=axis.V, xlim=c(-60,2000), col="grey")
 legend("topright", legend=c("Ecuador radiocarbon dates"), bg="transparent", bty="n",inset=0.010,cex=0.9)
 
-mtext("Cal yr BP",side=1,outer=T,line=1,  adj=0.525,cex=1)
+mtext("Cal years BP",side=1,outer=T,line=1,  adj=0.525,cex=1)
 dev.off()
