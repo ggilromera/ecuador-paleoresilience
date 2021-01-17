@@ -59,9 +59,10 @@ sum(row.has.na)
 
 diatoms_save <- cbind(agedepth, diat_red)
 
+#read taxonomic harmonisation diatom names list
 changes <- read.csv("data/old_new_nms_cores_counts.csv", stringsAsFactors = FALSE)
-#new1: ecological groups
-#new2: harmonized taxonomic names
+#column_new1: ecological groups
+#column_new2: harmonized taxonomic names
 
 #transform dataframe to tidy format
 new <- diatoms_save %>%
@@ -79,16 +80,17 @@ cores_merged <- new
 ## split cores by lakes and reassemble
 coresList <- split(cores_merged, cores_merged$lake)
 
-####################################
-
+###############################################
 ## This chunk is to process diatom training set
-##Import data
+##Read in environmental lake data
 environmental_data_lakes <- read.csv("data/environmental_data_lakes.csv") %>%
   mutate(lake_depth_ratio=Lake_area/Depth_avg) %>%
   mutate(lake_catch_ratio=Lake_area/Wshd_area) %>%
   mutate(catch_vol_ratio=Wshd_area/Vol_total)
 
 rownames(environmental_data_lakes) <- environmental_data_lakes$code
+
+##Read in diatom sediment surface data
 training <- read.csv("data/diatoms_trainingset.csv", row.names = 1) #with updated diatom taxonomy and selected spp (>3% of RA and present in >2 samples) plus Miriam's Llaviucu slides
 
 #Regions
@@ -101,7 +103,7 @@ modern_lakes <- merge(training, lake_regions, by="row.names")
 df_thin <- modern_lakes %>%
   gather(key = taxa, value = count, -Row.names, -region)#don't gather region
 
-#import dataframe wiht old and new names to group
+#import dataframe with old and new names to group
 changes_training <- read.csv("data/old_new_nms_trainingset.csv", stringsAsFactors = FALSE)
 
 #spread
@@ -113,7 +115,7 @@ new <- df_thin %>%
 
 levels(new$region)
 
-#this is to reduce training set to northern Andean lakes
+#this is to reduce training set to northern Andean lakes only
 select.regions <- paste(c("Ecuador", "Colombia", "Junin", "Cusco", "eastern"), collapse = '|')
 
 ##Do some filtering in the training set (i.e., remove datapoints that have spp with way too much abundance)
@@ -135,8 +137,6 @@ env_surf <- merge(training,environmental_data_lakes, by="row.names")
 #For extracting spp from trainingset
 training2 <- env_surf[,2:235]
 
-rowSums(training2)
-
 #For extracting environmental variables from diatom training set
 env_data_lakes <- env_surf[,236:ncol(env_surf)]
 row.names(env_data_lakes) <- env_data_lakes$code
@@ -146,13 +146,19 @@ env_data_lakes <- merge(env_data_lakes,lake_regions, by="row.names")
 row.names(env_data_lakes) <- env_data_lakes$code
 env_data_lakes <- env_data_lakes[,-c(1,2)]
 
-#combine cores and training set (join's analogue package)
+# Write environmnental lake dataset
+write.csv(env_data_lakes, "data/lake_env.csv")
+
+#combine cores and training set (join's analogue package function)
 df <- analogue::join(coresList[[1]], coresList[[2]], coresList[[3]], coresList[[4]],
                      coresList[[5]], coresList[[6]], coresList[[7]], coresList[[8]], training2, verbose = TRUE)
 
-#check NA in the list
+#check NA in the list and name the list
 listnans <- lapply(df, function(x) sum(is.na(x)))
+names(df) <- c("Fondococha", "Lagunillas", "Llaviucu", "Pinan", "Titicaca", "Triumfo", "Umayo", "Yahuarcocha", "trainingset")
 
+#save the core list
+saveRDS(df, "data/coresList.rds")
 
 #Remove empty spp resulting from merging dataframes (and drop year & depths vars)
 remove <- function(i, cores, ...) {
@@ -165,6 +171,7 @@ remove <- function(i, cores, ...) {
 }
 
 cores <- lapply(seq_along(df), remove, cores=df)
+
 #name list elements
 names(cores) <- c("Fondococha", "Lagunillas", "Llaviucu", "Pinan", "Titicaca", "Triumfo", "Umayo", "Yahuarcocha", "trainingset")
 
@@ -177,36 +184,35 @@ cores$trainingset <- NULL
 #check NA in the list
 listnans <- lapply(cores, function(x) sum(is.na(x)))
 
-### CCA
+### Canonical Correspondence Analysis
+# Subset candidate environmental variables
 env_data <- env_data_lakes
-
 variables <- c("pH", "Cond", "Water.T", "TP", "Depth_avg", "Ca", "Mg", "K", "Elevation",
                "MAT", "P.season", "MAP", "T.season", 
                "lake_depth_ratio", "lake_catch_ratio", "catch_vol_ratio",
                "HFP2009")
-
 env_data <- env_data[,variables]
 
-#transform variables to meet assumptions of homogenity of variances
+#transform variables to meet assumptions of homogeneity of variances
 env_data <- transform(env_data, Water.T=log10(Water.T+0.25), Elevation=sqrt(Elevation),Cond=log10(Cond+0.25), Ca=log10(Ca+0.25), Mg=log10(Mg+0.25), K=log10(K+0.25), TP=log10(TP+0.25),  
                       Depth_avg=log10(Depth_avg+0.25), MAT=log10(MAT+0.25), P.season=log10(P.season+0.25), MAP=log10(MAP+0.25), T.season=log10(T.season+0.25),
                       lake_depth_ratio=log10(lake_depth_ratio+0.25), lake_catch_ratio=log10(lake_catch_ratio+0.25), catch_vol_ratio=log10(catch_vol_ratio+0.25),
                       HFP2009=log10(HFP2009+0.25))
 
-#plot first cca to subset environmental variables
+#Run individual CCAs to select significant predictors on diatom data
 training <- training[,colSums(training) > 0] 
 
-# ccaResult <- list()
-# for (i in 1:length(env_data)) {
-#   mod <- cca(training~env_data[,i], na=na.omit, subset = complete.cases(training), scale=TRUE)
-#   ccaResult$mod[[i]] <- mod
-#   # plot(ccaResult$mod[[i]], main=colnames(env_data[i]))
-#   print(anova(ccaResult$mod[[i]]))
-# }
+ccaResult <- list()
+for (i in 1:length(env_data)) {
+  mod <- cca(training~env_data[,i], na=na.omit, subset = complete.cases(training), scale=TRUE)
+  ccaResult$mod[[i]] <- mod
+  #plot(ccaResult$mod[[i]], main=colnames(env_data[i]))
+  print(anova(ccaResult$mod[[i]]))
+}
 
-#names(ccaResult$mod) <- colnames(env_data)
+names(ccaResult$mod) <- colnames(env_data)
 
-#multivariate cca
+#Subset significant variable for multivariate cca
 select <- c("pH", "Cond", "Water.T", "TP", "Ca", "Mg", "K", "Elevation",
             "MAT", "P.season", "MAP", "T.season", 
             "HFP2009")
@@ -231,9 +237,9 @@ data <- env_data_red
 tempData <- mice(data,m=5,maxit=50,meth='pmm',seed=500)
 summary(tempData)
 completedData <- complete(tempData,1)
-
 env_data_red <- completedData
 
+# Check collinearity (set 5 as threshold)
 library(usdm)
 vifstep(env_data_red, th=5)
 
@@ -244,7 +250,7 @@ select <- c("pH", "Cond", "Water.T", "TP", "Ca",
 
 env_data_red2 <- env_data_red[,select]
 
-#redo CCA
+#redo CCA without collinear variables
 training <- training[,colSums(training) > 0] 
 
 #duplicate training dataframe before hellinger transformation for subset the more abundant species
@@ -254,13 +260,13 @@ training <- tran(training, method="hellinger") #give better results transforming
 mod_training <- cca(training~., data=env_data_red2, scale=TRUE)
 plot(mod_training, scaling = 3)
 
-
 #Plot eigenvalues and percentages of variation of an ordination object
 anova(mod_training, by="axis")
 ev <- as.vector(eigenvals(mod_training, model = "constrained")) #extract eigenvalues for then broken stick
 
 evplot <- function(ev) {
-  # Broken stick model (MacArthur 1957) Author: Francois Gillet, 25 August 2012
+
+# Broken stick model (MacArthur 1957) Author: Francois Gillet, 25 August 2012
   n <- length(ev)
   bsm <- data.frame(j=seq(1:n), p=0)
   bsm$p[1] <- 1/n
@@ -280,7 +286,7 @@ evplot <- function(ev) {
 
 br <- evplot(ev)
 
-#
+# Function to determine % of variation explained by each CCA axis
 axis.expl <- function(mod, axes = 1:2) {
   if(is.null(mod$CCA)) {
     sapply(axes, function(i) {
@@ -293,11 +299,11 @@ axis.expl <- function(mod, axes = 1:2) {
   }
 }
 (labs <- axis.expl(mod_training))
-labs[1] <- c(18.1)
-labs[2] <- c(16.2)
+# labs[1] <- c(18.1)
+# labs[2] <- c(16.2)
 
 
-#make core sample prediction to add passively into CCA
+#Make core sample predictions to add passively into CCA
 lake <- "Llaviucu"
 lakedepth <- "llaviucu"
 pred1<-predict(mod_training, newdata=decostand(cores[[lake]], "hellinger"), type="wa")
@@ -329,17 +335,18 @@ pred4$years <- coresList[[lakedepth]]$upper_age
 pred_cores <- rbind(pred1, pred2, pred3, pred4)
 pred_cores <- split(pred_cores, pred_cores$lake)
 
-#Plot for paper
+##### Plot for paper (Figure 4)
+# set palette colours
 seq_palette <- viridis(4)
 
-png("CCA_timetrack.png", width=10, height=8, units="in", res=300)
+png("figures/CCA_timetrack.png", width=10, height=8, units="in", res=300)
 layout(matrix(1:2, ncol = 2))
 
 # Extract species scores
 scrs <- scores(mod_training, display = "species", scaling = 3)
 take <- colnames(training_plt) %in% rownames(scrs)
 TAXA <- which(colSums(training_plt[,take] > 0) > 15 & (apply(training_plt[,take]^2, 2, max) > 10)) 
-plot(mod_training, display="species", scaling=3, type="n", xlab="", ylab="")
+plot(mod_training, display="species", scaling=3,type="n", xlab="", ylab="")
 title("Species", adj = 0.3, line = 0.2, cex.main=1, font.main=2, xpd=NA)
 title(xlab = paste0(names(labs[1]), " (", sprintf("%.1f", labs[1]), "%)"))
 title(ylab = paste0(names(labs[2]), " (", sprintf("%.1f", labs[2]), "%)"))
@@ -348,7 +355,7 @@ title(ylab = paste0(names(labs[2]), " (", sprintf("%.1f", labs[2]), "%)"))
 #from TAXA
 take1 <- unique(changes_training$new_1)
 take2 <- take1 %in% names(TAXA)
-nmsdiat <- changes_training$new_2[take2] #FALLA most likely due to repeated names; change manually
+nmsdiat <- changes_training$new_2[take2] #FAIL most likely due to repeated names; change manually
 
 nmsdiat <- nmsdiat[-43]
 nmsdiat[3] <- "tycoplanktonic"
@@ -378,74 +385,42 @@ rownames(scrs) <- colnames(training_plt)
 take <- colnames(training_plt) %in% rownames(scrs)
 TAXA <- which(colSums(training_plt[,take] > 0) > 15 & (apply(training_plt[,take]^2, 2, max) > 10)) 
 
-  #Extract most abundant spp scores 
-  take_scrs <- rownames(scrs) %in% names(TAXA)
-  scrsdf <- data.frame(scrs)
-  scrs_spp_CCA1 <- as.data.frame(scrsdf[,1][take_scrs])
-  scrs_spp_CCA1_2 <- as.data.frame(cbind(scrs_spp_CCA1, scrsdf[,2][take_scrs]))
-  colnames(scrs_spp_CCA1_2) <-c("CCA1", "CCA2")
-  rownames(scrs_spp_CCA1_2) <- names(TAXA)
-  scrs_spp_CCA1_2$guild <- nmsdiat
-  
-  #Plot ssp sccores
-  png("CCAaxes_speciesscore.png", width=10, height=8, units="in", res=300)
-  par(mfrow = c(1, 2))
-  par(mar = c(5, 4, 2, 2))
-  datCCA1 <- scrs_spp_CCA1_2[order(scrs_spp_CCA1_2$CCA1),] 
-  barplot(datCCA1$CCA1, col=as.factor(datCCA1$guild), xlab="CCA axis 1 species score",
-          horiz=TRUE)
-  datCCA2 <- scrs_spp_CCA1_2[order(scrs_spp_CCA1_2$CCA2),]
-  barplot(datCCA2$CCA2, col=as.factor(datCCA2$guild), xlab="CCA axis 2 species score",
-          horiz=TRUE)
-  legend(-1.5, 40, legend = as.character(unique(datCCA2$guild)), bty = "n",
-         col = as.factor(unique(datCCA2$guild)), pch = 15,
-         cex=0.8)
-  dev.off()
+  # #Extract most abundant spp scores 
+  # take_scrs <- rownames(scrs) %in% names(TAXA)
+  # scrsdf <- data.frame(scrs)
+  # scrs_spp_CCA1 <- as.data.frame(scrsdf[,1][take_scrs])
+  # scrs_spp_CCA1_2 <- as.data.frame(cbind(scrs_spp_CCA1, scrsdf[,2][take_scrs]))
+  # colnames(scrs_spp_CCA1_2) <-c("CCA1", "CCA2")
+  # rownames(scrs_spp_CCA1_2) <- names(TAXA)
+  # scrs_spp_CCA1_2$guild <- nmsdiat
+  # 
+  # #Plot ssp sccores
+  # png("CCAaxes_speciesscore.png", width=10, height=8, units="in", res=300)
+  # par(mfrow = c(1, 2))
+  # par(mar = c(5, 4, 2, 2))
+  # datCCA1 <- scrs_spp_CCA1_2[order(scrs_spp_CCA1_2$CCA1),] 
+  # barplot(datCCA1$CCA1, col=as.factor(datCCA1$guild), xlab="CCA axis 1 species score",
+  #         horiz=TRUE)
+  # datCCA2 <- scrs_spp_CCA1_2[order(scrs_spp_CCA1_2$CCA2),]
+  # barplot(datCCA2$CCA2, col=as.factor(datCCA2$guild), xlab="CCA axis 2 species score",
+  #         horiz=TRUE)
+  # legend(-1.5, 40, legend = as.character(unique(datCCA2$guild)), bty = "n",
+  #        col = as.factor(unique(datCCA2$guild)), pch = 15,
+  #        cex=0.8)
+  # dev.off()
 
 training_plt <- tran(training_plt, method="hellinger") #give better results transforming
 mod_training_plt <- cca(training_plt~., data=env_data_red2, scale=TRUE)
 ordipointlabel(mod_training_plt, display = "species", scaling = 3,
-               select = TAXA, cex = 0.6, add = TRUE)
+               select = TAXA, cex = 0.7, add = TRUE)
 
 legend("bottomleft", legend = as.character(unique(nmsdiat)), bty = "n",
                       col = as.factor(unique(nmsdiat)), pch = 21, pt.bg = as.factor(unique(nmsdiat)),
                       cex=0.7)
 
 ## Plot site (lake) scores
-plot(mod_training, display=c('bp', 'sites'), xlab="", ylab="")
-title("Sites", adj = 0.3, line = 0.2, cex.main=1, font.main=2, xpd=NA)
-
-# title(xlab = paste0(names(labs[1]), " (", sprintf("%.1f", labs[1]), "%)"))
-# title(ylab = paste0(names(labs[2]), " (", sprintf("%.1f", labs[2]), "%)"))
-
-points(pred_cores$Pinan[,1:2], type="l", col=seq_palette[1])
-points(pred_cores$Yahuarcocha[,1:2], type="l", col=seq_palette[2])
-points(pred_cores$Fondococha[,1:2], type="l", col=seq_palette[3])
-points(pred_cores$Llaviucu[,1:2], type="l", col=seq_palette[4])
-
-
-points(pred_cores$Pinan[1, ], pch = 24, cex = 1.6, bg=seq_palette[1],
-       col = "grey")
-points(pred_cores$Yahuarcocha[1, ], pch = 24, cex = 1.6, bg=seq_palette[2],
-       col = "grey")
-points(pred_cores$Fondococha[1, ], pch = 24, cex = 1.6, bg=seq_palette[3],
-       col = "grey")
-points(pred_cores$Llaviucu[1, ], pch = 24, cex = 1.6, bg=seq_palette[4],
-       col = "grey")
-
-points(pred_cores$Pinan[nrow(pred_cores$Pinan),], pch = 22, cex = 1.6,
-       col = "grey", bg=seq_palette[1])
-points(pred_cores$Yahuarcocha[nrow(pred_cores$Yahuarcocha),], pch = 22, cex = 1.6,
-       col = "grey", bg=seq_palette[2])
-points(pred_cores$Fondococha[nrow(pred_cores$Fondococha),], pch = 22, cex = 1.6,
-       col = "grey", bg=seq_palette[3])
-points(pred_cores$Llaviucu[nrow(pred_cores$Llaviucu),], pch = 22, cex = 1.6,
-       col = "grey", bg=seq_palette[4])
-
-legend(-1.5, -2, pch = c(24, 22), bg=c("forestgreen", "forestgreen"),
-       col=c("black","black"),  cex = 0.8,
-       legend = c("Core top","Core bottom"), bty = "n")
-
+#plot(mod_training, display=c('bp', 'sites'), xlab="", ylab="")
+plot(mod_training, type="n", xlab="", ylab="")
 
 ###
 #Calculate species turnover modern lakes
@@ -453,24 +428,17 @@ A <- analogue::distance(training, method="bray")
 
 # create an indicator for all diagonals in the matrix
 d <- row(A) - col(A)
-d # We create an index identifying main diagonal and minor diagonals > we want diagonal 1 (1 position below main)
-
 # use split to group on these values
 diagonal<-split(A, d)
-diagonal # list, identifies vectors for each diagonal
-
 spturn<-unlist(diagonal["1"]) # select relevant one (diag = 1)
-
-spturn # OK
-length(spturn)
 
 ###
 # CCA-species turnover ordisurf
 surf <- ordisurf(mod_training$CCA$u[-1,], spturn,
                  method = "REML", select = FALSE, add = TRUE,
-                 col = "orange", cex=1, lwd.cl = 2)
-summary(surf)
-legend(-1.5, -2.5, col="orange", lty=1, cex=0.8,
+                 col = "red", cex=1, lwd.cl = 1)
+#summary(surf)
+legend(-1.5, -3.1, col="red", lty=1, cex=0.8,
        legend= c("Species turnover"), bty='n')
 
 #calibrate () calls predict.gam
@@ -502,7 +470,40 @@ cols <- c("red", "mediumblue", "cadetblue1", "green")
 legend("topright", col=cols, lty=1, cex=0.8,
        legend= c("Fondococha", "Piñan", "Yahuarcocha", "Llaviucu"), bty='n')
 
-###
+### Add CCA site scores
+points(mod_training, display = 'sites', pch=16, cex=0.7, col="lightgrey")
+text(mod_training, display = "bp", cex=0.7, col="black")
+title("Sites", adj = 0.3, line = 0.2, cex.main=1, font.main=2, xpd=NA)
+
+#Add core trajectories
+points(pred_cores$Pinan[,1:2], type="l", col=seq_palette[1])
+points(pred_cores$Yahuarcocha[,1:2], type="l", col=seq_palette[2])
+points(pred_cores$Fondococha[,1:2], type="l", col=seq_palette[3])
+points(pred_cores$Llaviucu[,1:2], type="l", col=seq_palette[4])
+
+#Add top-bottom core samples
+points(pred_cores$Pinan[1, ], pch = 24, cex = 1.6, bg=seq_palette[1],
+       col = "grey")
+points(pred_cores$Yahuarcocha[1, ], pch = 24, cex = 1.6, bg=seq_palette[2],
+       col = "grey")
+points(pred_cores$Fondococha[1, ], pch = 24, cex = 1.6, bg=seq_palette[3],
+       col = "grey")
+points(pred_cores$Llaviucu[1, ], pch = 24, cex = 1.6, bg=seq_palette[4],
+       col = "grey")
+
+points(pred_cores$Pinan[nrow(pred_cores$Pinan),], pch = 22, cex = 1.6,
+       col = "grey", bg=seq_palette[1])
+points(pred_cores$Yahuarcocha[nrow(pred_cores$Yahuarcocha),], pch = 22, cex = 1.6,
+       col = "grey", bg=seq_palette[2])
+points(pred_cores$Fondococha[nrow(pred_cores$Fondococha),], pch = 22, cex = 1.6,
+       col = "grey", bg=seq_palette[3])
+points(pred_cores$Llaviucu[nrow(pred_cores$Llaviucu),], pch = 22, cex = 1.6,
+       col = "grey", bg=seq_palette[4])
+
+legend(-1.5, -2.6, pch = c(24, 22), bg=c("forestgreen", "forestgreen"),
+       col=c("black","black"),  cex = 0.8,
+       legend = c("Core top","Core bottom"), bty = "n")
+
 
 #par(fig = c(0.02, 0.22, 0.72, 0.97), new = TRUE) #top left
 par(fig = c(0.42,0.62, 0.72, 0.97), new = TRUE) #mid left for 1:2 species sires CCA plot
@@ -523,7 +524,7 @@ text(pred_cores$Pinan[nrow(pred_cores$Pinan),], labels=pred_cores$Pinan$years[nr
 title("Piñan", adj = 0.5, line = 0.2, cex.main=0.9, font.main=2, xpd=NA)
 box()
 
-
+## Plot core insets
 #par(fig = c(0.48,0.68, 0.72, 0.97), new = TRUE) #top right
 par(fig = c(0.78,0.98, 0.72, 0.97), new = TRUE) #top right for 1:2 species sires CCA plot
 
@@ -576,70 +577,9 @@ text(pred_cores$Llaviucu[nrow(pred_cores$Llaviucu),], labels=pred_cores$Llaviucu
 title("Llaviucu", adj = 0.5, line = 0.2, cex.main=0.9, font.main=2, xpd=NA)
 box()
 
+#save plot
 dev.off()
 
-
-## Modern analogues
-env <- env_data$Depth_avg
-lake <- "Llaviucu"
-lakedepth <- "llaviucu"
-
-mod <- rioja::MAT(training/100, env, dist.method="sq.chord")
-#mod <- rioja::MAT(training/100, env, dist.method="bray")
-
-pred <- predict(mod,cores[[lake]]/100)
-ages <- as.numeric(coresList[[lakedepth]]$upper_age)
-plot(ages, pred$dist.n[,1], ylab="Squared chord distance", xlab="Age cal yr BP")
-goodpoorbad <- quantile(pred$dist.n[,1], probs = c(0.75, 0.95))
-abline(h=goodpoorbad, col=c("orange", "red"))
-
-dist_to_analogues <- as.data.frame(ages) %>% 
-  mutate(
-    dist_to_analogues = pred$dist.n[, 1],
-    quality  = cut(dist_to_analogues, breaks = c(0, goodpoorbad, Inf), labels = c("good", "poor", "bad"))
-  )
-attr(dist_to_analogues, which = "goodpoorbad") <- goodpoorbad
-
-dist_to_analogues_plot <- ggpalaeo:::plot_diagnostics(x = dist_to_analogues, x_axis = "ages", y_axis = "dist_to_analogues", 
-                                                      goodpoorbad = attr(dist_to_analogues, "goodpoorbad"), fill = c("salmon", "lightyellow", "skyblue"), categories = c("Good", "Fair", "None")) + 
-  labs(x = "Cal yr BP", y = "Squared chord distance", fill = "Analogue quality") +
-  ggtitle("Fondococha")
-
-ggsave("dist_to_analogues_plot_fondococha.png", dist_to_analogues_plot, height = 8, width = 10)
-
-# dist_to_analogues$lake <- "Pinan"
-# dist_to_analogues_pinan <- dist_to_analogues
-# 
-# dist_to_analogues$lake <- "Yahuarcocha"
-# dist_to_analogues_yahuarcocha <- dist_to_analogues
-# 
-# dist_to_analogues$lake <- "Fondococha"
-# dist_to_analogues_fondococha <- dist_to_analogues
-# 
-# dist_to_analogues$lake <- "Llaviucu"
-# dist_to_analogues_llaviucu <- dist_to_analogues
-
-dist_to_analogues_all <- bind_rows(dist_to_analogues_pinan, dist_to_analogues_yahuarcocha,
-                                   dist_to_analogues_fondococha, dist_to_analogues_llaviucu)
-
-#rename Piñan
-dist_to_analogues_all <- dist_to_analogues_all %>% mutate(lake=str_replace(lake,"Pinan", "Piñan"))
-
-#arrange dataframe by latitude of lakes
-dist_to_analogues_all$lake <- factor(dist_to_analogues_all$lake, levels = c("Piñan", "Yahuarcocha", "Fondococha", "Llaviucu"))
-
-write.csv(dist_to_analogues_all, "dist_to_analogues_all_lakes.csv")
-
-dist_to_analogues_all_plt <- ggplot(data=dist_to_analogues_all, aes(x=ages, y=dist_to_analogues, col=quality)) +
-  geom_point() +
-  scale_color_manual(values=c("skyblue", "orange", "red"))+
-  facet_wrap(~lake, scales = "free")+
-  xlab("Cal yr BP") +
-  ylab("Squared chord distance") +
-  labs(col = "Quality")+
-  theme_bw()
-
-ggsave("dist_to_analogues_plot_all.png", dist_to_analogues_all_plt, height = 8, width = 10)
 
 
 
