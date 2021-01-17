@@ -1,5 +1,8 @@
-#Read core list
-readRDS("data/")
+## Here load the diatom core list with absolute counts
+df <- readRDS("data/coresList.rds")
+
+#create a vector with the target lakes to analize
+lakes <- c("Fondococha", "Llaviucu", "Pinan", "Yahuarcocha")
 
 ## Perform MULTIPLE constrained cluster analyses
 doCluster <- function(i, cores, ...) {

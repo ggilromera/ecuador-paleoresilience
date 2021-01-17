@@ -1,18 +1,109 @@
+##Read in the diatom core list and trainingset (absolute counts)
+df <- readRDS("data/coresList.rds")
+
+#create a vector with the target lakes to analize
+lakes <- c("Fondococha", "Llaviucu", "Pinan", "Yahuarcocha")
+
+#Remove empty spp resulting from merging dataframes (and drop year & depths vars)
+remove <- function(i, cores, ...) {
+  core <- cores[[i]]
+  core <- core[, -which(names(core) %in% c("depth", "upper_age", "lower_age", "lake", "AgeCE"))] # drop year & depths vars
+  # comment the next line when predicting core trajectories in the timetrack analysis
+  core <- core[, colSums(core) > 0] #select only present species
+  #core <- tran(core, "hellinger")
+  return(core)
+}
+
+cores <- lapply(seq_along(df), remove, cores=df)
+
+#name list elements
+names(cores) <- c("Fondococha", "Lagunillas", "Llaviucu", "Pinan", "Titicaca", "Triumfo", "Umayo", "Yahuarcocha", "trainingset")
+
+#drop trainingset from the core list
+cores$trainingset <- NULL
+
+#Calculate BC dissimilarity from successive samples
+doBCsuccessive <- function(i, cores,..) {
+  core <- cores[[i]]
+  D <- analogue::distance(core/100, method="bray")
+  # create an indicator for all diagonals in the matrix
+  d <- row(D) - col(D)
+  # use split to group on these values
+  diagonal<-split(D, d)
+  timeseriesBC<-unlist(diagonal["1"]) # select relevant one (diag = 1)
+  upper_age <- df[[i]]$upper_age
+  lower_age <- df[[i]]$lower_age
+  cbind.data.frame(timeseriesBC, upper_age[-1], lower_age[-1]) 
+}
+
+coresBCsucc <- lapply(seq_along(cores), doBCsuccessive, cores=cores)
+names(coresBCsucc) <- names(cores)
+
+ts_BCdismilarity <- plyr::ldply(coresBCsucc, data.frame)
+ts_BCdismilarity[,c(4,5)] <- NULL
+colnames(ts_BCdismilarity) <- c("lake", "timeseriesBC", "age")
+
+write.csv(ts_BCdismilarity, "data/ts_BCdismilarity.csv")
+
+
+#Calculate BC dissimilarity from the reference assemblage
+doBCcumulative <- function(i, cores,..) {
+  core <- cores[[i]]
+  D <- analogue::distance(core/100, method="bray")
+  BCcum <-D[,ncol(D)] #take the oldest sample as reference to see the direction of change
+  upper_age <- df[[i]]$upper_age
+  lower_age <- df[[i]]$lower_age
+  cbind.data.frame(BCcum, upper_age, lower_age) 
+}
+
+coresBCcum <- lapply(seq_along(cores), doBCcumulative, cores=cores)
+names(coresBCcum) <- names(cores)
+
+fifthpercentile <- list()
+for (i in 1:length(coresBCcum)) {
+  fifthpercentile[[i]] <- quantile(coresBCcum[[i]]$BCcum, probs = c(0.75, 0.95))
+}
+names(fifthpercentile) <- names(cores)
+
+fifthpercentile <- fifthpercentile[lakes]
+coresBCcum <- coresBCcum[lakes]
+
+##plot BC dissimilarity from the reference conditions
+par(mfrow = c(2, 2))
+par(mar = c(2.5, 3.5, 1, 0.5))
+par(mgp = c(1.5, 0.5, 0))
+par(oma = c(0, 0, 3, 0))
+
+for (i in 1:length(coresBCcum)) {
+  plot.ts(coresBCcum[[i]]$BCcum, cex = 0.6, cex.axis = 0.8,
+          las = 1, pch = 19, main=names(coresBCcum[i]), ylim=c(0,1),
+          ylab="BC Dissimilarity")
+  abline(h=fifthpercentile[[i]][2], col="blue")
+}
+
+
+ts_BCdismilarity_ref <- plyr::ldply(coresBCcum, data.frame)
+ts_BCdismilarity_ref[,4] <- NULL
+colnames(ts_BCdismilarity_ref) <- c("lake", "timeseriesBC_fromreference", "age")
+
+write.csv(ts_BCdismilarity_ref, "data/ts_BCdismilarity_ref.csv")
+
+
 ##BC dissimilarity time series
 
 ## BC dissimilarity from consecutive and cumulative samples
 #successive samples
 ## non-binned data
-ts_BCdismilarity_north_lakes <- read.csv("data/ts_BCdismilarity_north_lakes.csv", row.names = 1)
-tsref_BCdismilarity_north_lakes <- read.csv("data/tsref_BCdismilarity_north_lakes.csv", row.names = 1)
+# ts_BCdismilarity_north_lakes <- read.csv("data/ts_BCdismilarity_north_lakes.csv", row.names = 1)
+# tsref_BCdismilarity_north_lakes <- read.csv("data/tsref_BCdismilarity_north_lakes.csv", row.names = 1)
+# 
 
-
-llav <- ts_BCdismilarity_north_lakes %>% filter(id=="llaviucu")
+llav <- ts_BCdismilarity %>% filter(lake=="Llaviucu")
 yah <- ts_BCdismilarity_north_lakes %>% filter(id=="yahuarcocha")
 pin <- ts_BCdismilarity_north_lakes %>% filter(id=="pinan")
 fondo <- ts_BCdismilarity_north_lakes %>% filter(id=="fondococha")
 
-llav_ref <- tsref_BCdismilarity_north_lakes %>% filter(id=="llaviucu")
+llav_ref <- ts_BCdismilarity_ref %>% filter(lake=="Llaviucu")
 yah_ref <- tsref_BCdismilarity_north_lakes %>% filter(id=="yahuarcocha")
 pin_ref <- tsref_BCdismilarity_north_lakes %>% filter(id=="pinan")
 fondo_ref <- tsref_BCdismilarity_north_lakes %>% filter(id=="fondococha")
