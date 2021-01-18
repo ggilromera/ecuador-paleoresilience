@@ -1,4 +1,4 @@
-
+#Load packages for functions used
 library(maps)
 library(raster)
 library(cowplot)
@@ -17,6 +17,7 @@ southamerica <- ggplot() +
 
 
 #Plot elevation base map (raster library)
+unzip(zipfile = "data/DEM/dem.zip", exdir = "data/DEM")
 DEM <- raster("data/DEM/dem2.bil")
 ext<-extent(-82,-50,-30,15)
 ext_ecuador<-extent(-81,-77,-4,2)
@@ -42,43 +43,6 @@ andes_clim_records <- read.csv("data/andes_climatic_records.csv") %>%
 ## read Ecuador core geographic coordinates
 ecuador_cores <- read.csv("data/ecuador_cores.csv",
                           row.names = 1)[1:4,]
-  
-## composite plot without dem just for testing
-# plt <- southamerica +
-#   geom_point(data=env_data_lakes, aes(x=long, y=lat,shape=""),size=2)+
-#   geom_point(data=andes_clim_records, aes(x=long, y=lat, col=record),
-#              shape=18, size=4) +
-#   labs(color = "Hydroclimatic records")+
-#   scale_shape_manual(name="",labels = c("Modern Lakes"),
-#                      values = c(16))+
-#   theme(text= element_text(size=12),
-#         legend.direction="vertical",
-#         legend.position = c(0.75,0.5),
-#         legend.box.just = c("top"), 
-#         #legend.title = element_blank(),
-#         legend.background =element_rect(fill=alpha('white', 0.4)))+
-#   annotate(geom = "rect", ymax = -4, ymin = 2, xmax = -81, xmin = -77, colour = "brown", fill = NA)
-# plt  
-# 
-# ecuador <- ggplot() +
-#   geom_polygon(data = world, aes(x=long, y = lat, group = group), fill="lightgrey") +
-#   theme(legend.position = "right")+
-#   coord_map("albers", parameters = c(-100, -100),  ylim=c(-4,2), xlim=c(-81,-77)) +
-#   xlab("Longitude") + ylab("Latitude") +
-#   theme_bw()
-# 
-# plt_ecuador <- ecuador +
-#   geom_point(data=env_data_lakes, aes(x=long, y=lat),colour="grey",size=2)+
-#   geom_point(data=ecuador_cores, aes(x=Longitude, y=Latitude),shape=19,bg=16,size=3)+
-#   geom_text_repel(data=ecuador_cores, aes(Longitude, Latitude, label = lake)) +
-#   theme(legend.position = "bottom",
-#         legend.title = element_blank())
-# plt_ecuador  
-# 
-# plt_grid <- plot_grid(plt,plt_ecuador, align="hv", axis="t", ncol = 2,
-#                  rel_widths = c(1,1),labels = "auto")
-# plt_grid
-###
 
 ## composite map with dem
 plot_sa <- ggplot(data=df, aes(y=lat, x=long)) +
@@ -139,24 +103,9 @@ plt_ecuador
 plot_composite <- plot_grid(plot_sa,plt_ecuador,align="hv", axis="t", vjust=c(6,6),
                             ncol = 2,  rel_widths = c(1,0.7),labels = "auto")
 plot_composite
+
+#save study area map (Figure 1)
 ggsave("figures/map_figure1.png", plot_composite, height = 8, width = 10)
 
-##
-# plot1 <- ggplot(data=df, aes(y=lat, x=long)) +
-#   geom_raster(aes(fill=Elevation)) +
-#   scale_fill_distiller(palette = "RdYlBu") +
-#   #scale_colour_gradient(high = "red") +
-#   geom_point(data=env_data_lakes, aes(x=long, y=lat,shape=""),size=2) +
-#   geom_point(data=andes_clim_records, aes(x=long, y=lat,col=record),shape=18,size=3)+
-#   labs(color = "Records")+
-#   scale_shape_manual(name="",labels = c("Modern Lakes"),
-#                      values = c(16))+
-#   xlab("Longitude")+
-#   ylab("Latitude")+
-#   theme(legend.title = element_blank())+
-#   theme_bw() +
-#   coord_equal()
-
-ggsave("map_figure1.png", plot1, height = 8, width = 10)
 
 
