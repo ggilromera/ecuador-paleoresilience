@@ -7,3 +7,7 @@ Accepted in Limnology & Oceanography's Special Issue Nonlinear dynamics
 1. **R scripts**: code for running all the statistical analyses in a logical order
 2. **Data**: raw datasets (diatom sediment and training set absolute abundances, lake environmental data, and geochemical proxies) and secondary matrices resulting from primary statistical analyses in <i>R scripts</i>
 3. **Figures**: plots resulting from analyses in <i>R scripts</i>
+
+
+### Methodological framework to characterize diatom community responses 
+<img src="figures/Fig2_conceptualdiagram.tiff" width=600></img>
