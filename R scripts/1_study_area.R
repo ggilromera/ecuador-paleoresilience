@@ -1,3 +1,10 @@
+#---------------------------------------------------------------------------------------
+# Script: Generate Study Area plot (Figure 1)
+# Paper: Ecological resilience of tropical Andean lakes: a paleolimnological perspective
+# Author: Benito, X.
+# e-mail: xavier.benito.granell@gmail.com
+#---------------------------------------------------------------------------------------
+
 #Load packages for functions used
 library(maps)
 library(raster)

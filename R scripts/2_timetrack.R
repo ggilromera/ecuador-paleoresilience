@@ -31,7 +31,7 @@ diat[is.na(diat)] <- 0
 diatoms_save <- cbind(agedepth, diat)
 coresList <- split(diatoms_save, diatoms_save$lake)
 
-# this is function to calculate relative abundance from counts data
+# this function calculates relative abundance from counts data over the core list
 RA <- function(i, cores, ...) {
   core <- cores[[i]]
   core <- core[ , -which(names(core) %in% c("depth","upper_age", "lower_age", "lake"))] # drop year & depths vars

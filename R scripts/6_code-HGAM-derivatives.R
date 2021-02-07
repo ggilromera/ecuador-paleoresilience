@@ -1,3 +1,10 @@
+#----------------------------------------------------------------------------------------
+# Script: Rate-of-change Generalized Additive Modeling 
+# Paper: Ecological resilience of tropical Andean lakes: a paleolimnological perspective
+# Author: Benito, X.
+# e-mail: xavier.benito.granell@gmail.com
+#----------------------------------------------------------------------------------------
+
 ##loading libraries for functions used
 library(mgcv) #allow to perform GAM analyses
 library(ggplot2) #allow to make fancy graphs
