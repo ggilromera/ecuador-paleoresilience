@@ -9,4 +9,4 @@ Accepted in Limnology & Oceanography's Special Issue Nonlinear dynamics
 3. **Figures**: plots resulting from analyses in <i>R scripts</i>
 
 ### Methodological framework to characterize diatom community responses 
-<img src="figures/Fig2_conceptualdiagram.jpg" width=600></img>
+<img src="figures/Fig2_methodologicaldiagram.jpg" width=600></img>
