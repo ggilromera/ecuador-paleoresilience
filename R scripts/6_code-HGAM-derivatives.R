@@ -255,7 +255,7 @@ mean_plot <- derivAll %>%
   #scale_y_continuous("average rate of change of log-abundance ")+
   ylab(expression(paste ("average rate of change of log-abundance", " (year"^-1, ")")))+
   xlim(-70, 2000)+
-  xlab("Cal years BP") +
+  xlab("Years Before Present") +
   theme_bw() +
   facet_wrap(~lake, ncol = 1,  scales = "free")
 mean_plot 
@@ -277,7 +277,7 @@ sd_plot <- derivAll %>%
   geom_line()+
   geom_hline(yintercept = 0, linetype=2) +
   #scale_y_continuous("st. dev of rate of change of log-abundance")+
-  xlab("Cal years BP") +
+  xlab("Years Before Present") +
   ylab(expression(paste ("st. dev of rate of change of log-abundance", " (year"^-1, ")")))+
   xlim(-70, 2000)+
   facet_wrap(~lake, ncol=1, scales = "free")+

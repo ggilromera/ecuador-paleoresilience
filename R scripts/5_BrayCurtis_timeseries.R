@@ -242,5 +242,5 @@ plot(ecuadorspds$calBP, ecuadorspds$PrDens, type="h", lwd=2, ylab="SPD",
      cex.lab=label.V,cex.axis=axis.V, xlim=c(-60,2000), col="grey")
 legend("topright", legend=c("Ecuador radiocarbon dates"), bg="transparent", bty="n",inset=0.010,cex=0.9)
 
-mtext("Cal years BP",side=1,outer=T,line=1,  adj=0.525,cex=1)
+mtext("Years Before Present",side=1,outer=T,line=1,  adj=0.525,cex=1)
 dev.off()
